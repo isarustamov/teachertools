@@ -26,123 +26,192 @@ export type TopicPack = {
 };
 
 const sourceStyles = ["Azərbaycan kurikulumu", "PISA tipli düşünmə", "TIMSS tipli test", "Olimpiada başlanğıc", "Real həyat məsələsi"];
+const difficulties: Difficulty[] = ["Asan", "Orta", "Orta", "Çətin"];
 
-function task(input: Omit<MathTask, "id" | "sourceStyle"> & { index: number }) {
+type TopicMeta = {
+  slug: string;
+  title: string;
+  description: string;
+  lesson: string;
+  example: string;
+  xp: number;
+  builder: (grade: number, index: number, meta: TopicMeta) => Omit<MathTask, "id" | "grade" | "topicSlug" | "topicTitle" | "sourceStyle">;
+};
+
+function uniqueOptions(values: Array<number | string>, answer: number | string) {
+  const normalized = [answer, ...values].map(String);
+  const unique = Array.from(new Set(normalized));
+  while (unique.length < 4) unique.push(`${answer}-${unique.length}`);
+  return unique.slice(0, 4);
+}
+
+function task(grade: number, index: number, meta: TopicMeta): MathTask {
+  const built = meta.builder(grade, index, meta);
   return {
-    ...input,
-    id: `g${input.grade}-${input.topicSlug}-${input.index}`,
-    sourceStyle: sourceStyles[input.index % sourceStyles.length]
+    ...built,
+    id: `g${grade}-${meta.slug}-${index}`,
+    grade,
+    topicSlug: meta.slug,
+    topicTitle: meta.title,
+    sourceStyle: sourceStyles[index % sourceStyles.length]
   };
 }
 
-function numericOptions(answer: number, spread = 2) {
-  return [answer, answer + spread, Math.max(0, answer - spread), answer + spread * 2].map(String);
+function arithmeticBuilder(grade: number, index: number) {
+  const a = grade * 10 + index * 3 + 8;
+  const b = grade * 4 + index + 6;
+  const mode = index % 4;
+  if (mode === 0) {
+    const answer = a + b;
+    return { skill: "Toplama", difficulty: difficulties[index % 4], question: `${a} + ${b} neçədir?`, options: uniqueOptions([answer + 4, answer - 3, answer + 9], answer), answer: String(answer), explanation: `Toplama aparırıq: ${a} + ${b} = ${answer}.` };
+  }
+  if (mode === 1) {
+    const answer = a - b;
+    return { skill: "Çıxma", difficulty: difficulties[index % 4], question: `${a} - ${b} neçədir?`, options: uniqueOptions([answer + 5, answer - 2, answer + 10], answer), answer: String(answer), explanation: `Böyük ədəddən kiçik ədədi çıxırıq: ${a} - ${b} = ${answer}.` };
+  }
+  if (mode === 2) {
+    const x = grade + 2 + (index % 6);
+    const y = 3 + (index % 7);
+    const answer = x * y;
+    return { skill: "Vurma", difficulty: difficulties[index % 4], question: `${x} × ${y} neçədir?`, options: uniqueOptions([answer + y, answer - x, answer + x], answer), answer: String(answer), explanation: `${x} ədədini ${y} dəfə götürürük: ${answer}.` };
+  }
+  const answer = (grade + index) + (grade + 2) * 3;
+  return { skill: "Əməl ardıcıllığı", difficulty: "Çətin" as Difficulty, question: `${grade + index} + ${grade + 2} × 3 ifadəsinin qiyməti neçədir?`, options: uniqueOptions([answer + 3, answer - 3, (grade + index + grade + 2) * 3], answer), answer: String(answer), explanation: `Əvvəl vurma: ${grade + 2}×3=${(grade + 2) * 3}, sonra toplama: nəticə ${answer}.` };
 }
 
-function arithmeticPack(grade: number): TopicPack {
-  const a = grade * 7 + 8;
-  const b = grade * 5 + 6;
-  const c = grade + 3;
-  const slug = "hesab-emelleri";
-  const title = "Hesab əməlləri və çevik hesablama";
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Toplama", difficulty: "Asan", question: `${a} + ${b} neçədir?`, options: numericOptions(a + b, grade + 1), answer: String(a + b), explanation: `${a} üzərinə ${b} əlavə edirik: ${a} + ${b} = ${a + b}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Çıxma", difficulty: "Asan", question: `${a + b + 20} - ${b} neçədir?`, options: numericOptions(a + 20, c), answer: String(a + 20), explanation: `Çıxma toplamanın tərsidir: ${a + b + 20} - ${b} = ${a + 20}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "Vurma", difficulty: "Orta", question: `${c} × ${grade + 4} neçədir?`, options: numericOptions(c * (grade + 4), grade), answer: String(c * (grade + 4)), explanation: `${c} ədədini ${grade + 4} dəfə toplayırıq: nəticə ${c * (grade + 4)}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Əməl ardıcıllığı", difficulty: "Orta", question: `${c} + ${grade + 2} × 3 ifadəsinin qiyməti neçədir?`, options: numericOptions(c + (grade + 2) * 3, 3), answer: String(c + (grade + 2) * 3), explanation: `Əvvəl vurma aparılır: ${grade + 2} × 3 = ${(grade + 2) * 3}, sonra ${c} əlavə olunur.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Məntiqi hesablama", difficulty: "Çətin", question: `Bir şagird ${grade + 4} gün hər gün ${c} məsələ həll etdi. Cəmi neçə məsələdir?`, options: numericOptions((grade + 4) * c, 4), answer: String((grade + 4) * c), explanation: `Hər gün eyni sayda məsələdirsə, gün sayı ilə gündəlik sayı vururuq: ${grade + 4} × ${c}.` })
-  ];
-  return { grade, slug, title, description: "Sürətli, dəqiq və məntiqli hesablamanı möhkəmləndir.", lesson: "Əvvəl əməl ardıcıllığını yoxla: mötərizə, vurma-bölmə, sonra toplama-çıxma. Real məsələlərdə verilənləri ayrıca yazmaq səhvi azaldır.", example: `${c} + ${grade + 2} × 3 = ${c + (grade + 2) * 3}`, xp: 80, tasks };
+function fractionBuilder(grade: number, index: number) {
+  const d = grade + 5 + (index % 5);
+  const n = 1 + (index % Math.max(2, d - 2));
+  if (index % 4 === 0) {
+    const answer = `${n + 2}/${d}`;
+    return { skill: "Eyni məxrəc", difficulty: "Asan" as Difficulty, question: `${n}/${d} + 2/${d} neçədir?`, options: uniqueOptions([`${n + 1}/${d}`, `${n + 2}/${d + 2}`, `${n}/${d + 2}`], answer), answer, explanation: "Məxrəclər eyni olduğuna görə surətləri toplayırıq, məxrəci saxlayırıq." };
+  }
+  if (index % 4 === 1) {
+    const answer = `${n}/${d}`;
+    return { skill: "Sadələşdirmə", difficulty: "Orta" as Difficulty, question: `${2 * n}/${2 * d} kəsrinin sadə forması hansıdır?`, options: uniqueOptions([`${2 * n}/${d}`, `${n}/${2 * d}`, `${d}/${n}`], answer), answer, explanation: `Surət və məxrəc 2-yə bölünür: ${2 * n}/${2 * d} = ${answer}.` };
+  }
+  if (index % 4 === 2) {
+    const percent = (index % 9 + 1) * 10;
+    const answer = String(percent / 100);
+    return { skill: "Faiz", difficulty: "Orta" as Difficulty, question: `${percent}% onluq yazılışda necədir?`, options: uniqueOptions([percent, percent / 10, `${percent}/10`], answer), answer, explanation: `Faizi onluğa çevirmək üçün 100-ə bölürük: ${percent}/100=${answer}.` };
+  }
+  const answer = String(2 * grade + index + 3);
+  return { skill: "Nisbət", difficulty: "Çətin" as Difficulty, question: `Nisbət ${grade + index}:${grade + 3}-dür. Ümumi hissələrin sayı neçədir?`, options: uniqueOptions([Number(answer) + 2, Number(answer) - 2, grade + index], answer), answer, explanation: `Ümumi hissə nisbətin tərəflərinin cəmidir: ${grade + index}+${grade + 3}=${answer}.` };
 }
 
-function fractionsPack(grade: number): TopicPack {
-  const slug = "kesrler";
-  const title = "Kəsrlər, nisbət və faiz";
-  const d = grade + 4;
-  const n = Math.max(1, grade - 2);
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Eyni məxrəc", difficulty: "Asan", question: `${n}/${d} + 2/${d} neçədir?`, options: [`${n + 2}/${d}`, `${n + 2}/${d + 2}`, `${n}/${d + 2}`, `${n + 1}/${d}`], answer: `${n + 2}/${d}`, explanation: "Məxrəclər eynidirsə, yalnız surətləri toplayırıq və məxrəci saxlayırıq." }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Sadələşdirmə", difficulty: "Orta", question: `${2 * n}/${2 * d} kəsrinin sadə forması hansıdır?`, options: [`${n}/${d}`, `${2 * n}/${d}`, `${n}/${2 * d}`, `${d}/${n}`], answer: `${n}/${d}`, explanation: `Surət və məxrəc 2-yə bölünür: ${2 * n}/${2 * d} = ${n}/${d}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "Faiz", difficulty: "Orta", question: `${grade * 10}% ədədinin onluq yazılışı hansıdır?`, options: [`${grade / 10}`, `${grade}`, `0.0${grade}`, `${grade * 10}`], answer: `${grade / 10}`, explanation: "Faizi onluğa çevirmək üçün 100-ə bölürük." }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Nisbət", difficulty: "Çətin", question: `Sinifdə oğlan:qız nisbəti ${grade}:${grade + 2}-dir. Qızlar ${grade + 2} hissədirsə, ümumi hissə neçədir?`, options: numericOptions(2 * grade + 2, 2), answer: String(2 * grade + 2), explanation: `Ümumi hissə nisbətin hissələrinin cəmidir: ${grade} + ${grade + 2} = ${2 * grade + 2}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Müqayisə", difficulty: "Çətin", question: `Hansı daha böyükdür: ${n}/${d} yoxsa ${n + 1}/${d}?`, options: [`${n + 1}/${d}`, `${n}/${d}`, "Bərabərdir", "Müqayisə etmək olmaz"], answer: `${n + 1}/${d}`, explanation: "Məxrəclər eyni olduqda surəti böyük olan kəsr daha böyükdür." })
-  ];
-  return { grade, slug, title, description: "Kəsr, faiz və nisbət suallarını addım-addım həll et.", lesson: "Kəsrdə məxrəc bütövün neçə hissəyə bölündüyünü, surət isə neçə hissə götürüldüyünü göstərir. Faiz isə 100 üzərindən pay deməkdir.", example: `${n}/${d} + 2/${d} = ${n + 2}/${d}`, xp: 100, tasks };
+function geometryBuilder(grade: number, index: number) {
+  const l = grade + 5 + index;
+  const w = grade + 2 + (index % 6);
+  if (index % 4 === 0) {
+    const answer = 2 * (l + w);
+    return { skill: "Perimetr", difficulty: "Asan" as Difficulty, question: `Uzunluğu ${l} sm, eni ${w} sm olan düzbucaqlının perimetri neçə sm-dir?`, options: uniqueOptions([answer + 4, l * w, answer - 2], answer), answer: String(answer), explanation: `P=2×(uzunluq+en)=2×(${l}+${w})=${answer}.` };
+  }
+  if (index % 4 === 1) {
+    const answer = l * w;
+    return { skill: "Sahə", difficulty: "Orta" as Difficulty, question: `${l} sm və ${w} sm tərəfli düzbucaqlının sahəsi neçə sm²-dir?`, options: uniqueOptions([answer + l, 2 * (l + w), answer - w], answer), answer: String(answer), explanation: `Sahə uzunluq×en düsturu ilə tapılır: ${l}×${w}=${answer}.` };
+  }
+  if (index % 4 === 2) {
+    const a = 35 + grade + (index % 10);
+    const b = 55 + (index % 8);
+    const answer = 180 - a - b;
+    return { skill: "Bucaq", difficulty: "Orta" as Difficulty, question: `Üçbucağın iki bucağı ${a}° və ${b}°-dir. Üçüncü bucaq neçə dərəcədir?`, options: uniqueOptions([answer + 5, answer - 5, 180 - a], answer), answer: String(answer), explanation: `Üçbucağın daxili bucaqları 180° edir: 180-${a}-${b}=${answer}.` };
+  }
+  const side = grade + 1 + (index % 5);
+  const answer = side ** 3;
+  return { skill: "Həcm", difficulty: "Çətin" as Difficulty, question: `Kənarı ${side} sm olan kubun həcmi neçə sm³-dir?`, options: uniqueOptions([side ** 2, answer + side, answer - side], answer), answer: String(answer), explanation: `Kubun həcmi a³-dür: ${side}³=${answer}.` };
 }
 
-function geometryPack(grade: number): TopicPack {
-  const slug = "hendese";
-  const title = "Həndəsə və ölçmə";
-  const l = grade + 5;
-  const w = grade + 2;
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Perimetr", difficulty: "Asan", question: `Uzunluğu ${l} sm, eni ${w} sm olan düzbucaqlının perimetri neçə sm-dir?`, options: numericOptions(2 * (l + w), 4), answer: String(2 * (l + w)), explanation: `Düzbucaqlının perimetri 2 × (uzunluq + en): 2 × (${l}+${w}) = ${2 * (l + w)}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Sahə", difficulty: "Orta", question: `Uzunluğu ${l} sm, eni ${w} sm olan düzbucaqlının sahəsi neçə sm²-dir?`, options: numericOptions(l * w, 5), answer: String(l * w), explanation: `Sahə uzunluq × en ilə tapılır: ${l} × ${w} = ${l * w}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "Bucaq", difficulty: "Orta", question: `Üçbucağın iki bucağı ${40 + grade}° və ${50 + grade}°-dir. Üçüncü bucaq neçə dərəcədir?`, options: numericOptions(180 - (90 + 2 * grade), 5), answer: String(180 - (90 + 2 * grade)), explanation: `Üçbucağın daxili bucaqlarının cəmi 180°-dir.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Həcm", difficulty: "Çətin", question: `Kənarı ${grade + 1} sm olan kubun həcmi neçə sm³-dir?`, options: numericOptions((grade + 1) ** 3, grade + 3), answer: String((grade + 1) ** 3), explanation: `Kubun həcmi a³-dür: ${grade + 1}³ = ${(grade + 1) ** 3}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Koordinat", difficulty: "Çətin", question: `A(${grade}, ${grade + 2}) nöqtəsi sağa 3 vahid sürüşdürülür. Yeni x koordinatı neçədir?`, options: numericOptions(grade + 3, 1), answer: String(grade + 3), explanation: "Sağa sürüşmə x koordinatını artırır, y dəyişmir." })
-  ];
-  return { grade, slug, title, description: "Fiqurlar, ölçülər, sahə, həcm və bucaq əlaqələri.", lesson: "Həndəsə suallarında əvvəl fiquru təsəvvür et, verilən ölçüləri yaz, sonra uyğun düsturu seç.", example: `P = 2 × (${l}+${w}) = ${2 * (l + w)}`, xp: 90, tasks };
+function equationBuilder(grade: number, index: number) {
+  const x = grade + 2 + (index % 9);
+  const b = grade + index + 4;
+  if (index % 3 === 0) {
+    return { skill: "Sadə tənlik", difficulty: "Asan" as Difficulty, question: `x + ${b} = ${x + b}. x neçədir?`, options: uniqueOptions([x + 1, x - 1, x + 3], x), answer: String(x), explanation: `Hər iki tərəfdən ${b} çıxırıq: x=${x}.` };
+  }
+  if (index % 3 === 1) {
+    const a = 2 + (index % 5);
+    return { skill: "Vurma ilə tənlik", difficulty: "Orta" as Difficulty, question: `${a}x = ${a * x}. x neçədir?`, options: uniqueOptions([x + 2, x - 2, a * x], x), answer: String(x), explanation: `Hər iki tərəfi ${a}-ə bölürük: x=${x}.` };
+  }
+  return { skill: "Mətnli tənlik", difficulty: "Çətin" as Difficulty, question: `Bir ədədin üzərinə ${b} əlavə etdikdə ${x + b} alınır. Ədəd neçədir?`, options: uniqueOptions([x + b, b, x + 1], x), answer: String(x), explanation: `Naməlum ədədi tapmaq üçün ${x + b}-${b}=${x}.` };
 }
 
-function algebraPack(grade: number): TopicPack {
-  const slug = "tenlikler-cebr";
-  const title = "Tənliklər və cəbr";
-  const x = grade + 2;
-  const a = grade - 3;
-  const b = grade + 5;
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Xətti tənlik", difficulty: "Asan", question: `x + ${b} = ${x + b}. x neçədir?`, options: numericOptions(x, 2), answer: String(x), explanation: `Hər iki tərəfdən ${b} çıxırıq: x = ${x + b} - ${b} = ${x}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Vurma ilə tənlik", difficulty: "Orta", question: `${a}x = ${a * x}. x neçədir?`, options: numericOptions(x, 1), answer: String(x), explanation: `Hər iki tərəfi ${a}-ə bölürük və x = ${x} alınır.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "İfadə", difficulty: "Orta", question: `a=${a}, b=${b} olarsa, 2a+b neçədir?`, options: numericOptions(2 * a + b, 3), answer: String(2 * a + b), explanation: `2a+b = 2×${a}+${b} = ${2 * a + b}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Kvadrat tənlik", difficulty: "Çətin", question: `x² - ${2 * x}x + ${x * x} = 0 tənliyinin kökü hansıdır?`, options: [String(x), String(x + 1), String(x - 1), "0"], answer: String(x), explanation: `Bu ifadə (x-${x})² formasındadır, ona görə kök ${x}-dir.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Mətnli tənlik", difficulty: "Çətin", question: `Bir ədədin ${a} misli ${a * x}-dir. Ədəd neçədir?`, options: numericOptions(x, 2), answer: String(x), explanation: `Naməlum ədədə x desək, ${a}x=${a * x}; bölmə ilə x=${x}.` })
-  ];
-  return { grade, slug, title, description: "Naməlumu tap, ifadəni sadələşdir və model qur.", lesson: "Tənlik tərəzidir: bir tərəfdə etdiyin əməli eyni şəkildə digər tərəfdə də etməlisən. Məqsəd naməlumu tək saxlamaqdır.", example: `x + ${b} = ${x + b} → x=${x}`, xp: 120, tasks };
-}
-
-function functionsPack(grade: number): TopicPack {
-  const slug = "funksiyalar";
-  const title = "Funksiyalar və qrafik düşüncə";
-  const m = grade - 6;
-  const k = grade + 1;
-  const val = 3;
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Funksiya qiyməti", difficulty: "Asan", question: `f(x)=${m}x+${k}. f(${val}) neçədir?`, options: numericOptions(m * val + k, 2), answer: String(m * val + k), explanation: `x yerinə ${val} yazırıq: ${m}×${val}+${k}=${m * val + k}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Meyl", difficulty: "Orta", question: `y=${m}x+${k} düz xəttinin meyli hansıdır?`, options: [String(m), String(k), String(m + k), "0"], answer: String(m), explanation: "y=mx+b formasında m düz xəttin meylidir." }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "Kəsişmə", difficulty: "Orta", question: `y=${m}x+${k} qrafiki y oxunu hansı nöqtədə kəsir?`, options: [String(k), String(m), String(-k), String(m * k)], answer: String(k), explanation: "x=0 olduqda y sərbəst həddə bərabər olur." }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Ardıcıllıq", difficulty: "Çətin", question: `${k}, ${k + m}, ${k + 2 * m}, ... ardıcıllığında növbəti hədd hansıdır?`, options: [String(k + 3 * m), String(k + 2 * m + 1), String(k + m), String(k + 4 * m)], answer: String(k + 3 * m), explanation: `Hər dəfə ${m} əlavə olunur, növbəti hədd ${k + 3 * m}-dir.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Model", difficulty: "Çətin", question: `Taksi haqqı ${k} AZN başlanğıc və hər km üçün ${Math.abs(m) + 1} AZN-dir. 3 km üçün neçə AZN?`, options: numericOptions(k + 3 * (Math.abs(m) + 1), 2), answer: String(k + 3 * (Math.abs(m) + 1)), explanation: `Model: ${k}+3×${Math.abs(m) + 1}=${k + 3 * (Math.abs(m) + 1)}.` })
-  ];
-  return { grade, slug, title, description: "Qrafik, ardıcıllıq və real həyat modelləri.", lesson: "Funksiya girişlə çıxış arasındakı qaydadır. Qaydanı tapmaq üçün x-in dəyişməsi ilə y-in necə dəyişdiyini izləyirik.", example: `f(${val})=${m}×${val}+${k}`, xp: 130, tasks };
-}
-
-function probabilityPack(grade: number): TopicPack {
-  const slug = "statistika-ehtimal";
-  const title = "Statistika və ehtimal";
-  const red = grade + 1;
-  const blue = grade + 3;
-  const total = red + blue;
-  const nums = [grade, grade + 2, grade + 4, grade + 6];
+function statisticsBuilder(grade: number, index: number) {
+  const nums = [grade + index, grade + index + 2, grade + index + 4, grade + index + 6];
   const mean = nums.reduce((sum, item) => sum + item, 0) / nums.length;
-  const tasks = [
-    task({ grade, topicSlug: slug, topicTitle: title, index: 0, skill: "Ehtimal", difficulty: "Asan", question: `Qutuda ${red} qırmızı və ${blue} göy top var. Qırmızı top seçmə ehtimalı hansıdır?`, options: [`${red}/${total}`, `${blue}/${total}`, `${total}/${red}`, `1/${total}`], answer: `${red}/${total}`, explanation: `Ehtimal əlverişli hallar / bütün hallar = ${red}/${total}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 1, skill: "Orta qiymət", difficulty: "Orta", question: `${nums.join(", ")} ədədlərinin ədədi ortası neçədir?`, options: [String(mean), String(mean + 1), String(mean - 1), String(mean * 2)], answer: String(mean), explanation: `Ədədləri toplayıb sayına bölürük: ${nums.reduce((s, n) => s + n, 0)}/4=${mean}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 2, skill: "Median", difficulty: "Orta", question: `${nums.join(", ")} sıralamasında median neçədir?`, options: [String((nums[1] + nums[2]) / 2), String(nums[1]), String(nums[2]), String(mean + 2)], answer: String((nums[1] + nums[2]) / 2), explanation: "Dörd ədəd olduqda median ortadakı iki ədədin ortasıdır." }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 3, skill: "Faizli artım", difficulty: "Çətin", question: `${grade * 10} göstəricisi 10% artdı. Yeni göstərici neçədir?`, options: [String(grade * 11), String(grade * 10 + 10), String(grade * 9), String(grade * 12)], answer: String(grade * 11), explanation: `10% artım 1.1-ə vurmaqdır: ${grade * 10}×1.1=${grade * 11}.` }),
-    task({ grade, topicSlug: slug, topicTitle: title, index: 4, skill: "Məlumat oxuma", difficulty: "Çətin", question: `Bir həftədə həll olunan testlər: ${grade}, ${grade + 1}, ${grade + 2}, ${grade + 3}. Ən böyük və ən kiçik fərqi neçədir?`, options: ["3", "4", "2", String(grade)], answer: "3", explanation: `Fərq maksimum-minimumdur: ${grade + 3}-${grade}=3.` })
-  ];
-  return { grade, slug, title, description: "Məlumatı oxu, ehtimalı hesabla və nəticə çıxar.", lesson: "Statistika məlumatdan nəticə çıxarmaq üçündür. Ehtimal isə bir hadisənin baş vermə şansını ölçür.", example: `P(qırmızı)=${red}/${total}`, xp: 110, tasks };
+  if (index % 3 === 0) return { skill: "Ədədi orta", difficulty: "Orta" as Difficulty, question: `${nums.join(", ")} ədədlərinin ədədi ortası neçədir?`, options: uniqueOptions([mean + 1, mean - 1, mean + 2], mean), answer: String(mean), explanation: `Cəm ${nums.reduce((s, n) => s + n, 0)}-dir, 4-ə bölürük: ${mean}.` };
+  if (index % 3 === 1) return { skill: "Median", difficulty: "Orta" as Difficulty, question: `${nums.join(", ")} verilənlərində median neçədir?`, options: uniqueOptions([nums[1], nums[2], mean + 2], mean), answer: String(mean), explanation: "Dörd ədəd olduqda median ortadakı iki ədədin ortasıdır." };
+  const answer = nums[3] - nums[0];
+  return { skill: "Dəyişmə aralığı", difficulty: "Asan" as Difficulty, question: `${nums.join(", ")} verilənlərində ən böyük və ən kiçik fərqi neçədir?`, options: uniqueOptions([answer + 1, answer - 1, nums[3]], answer), answer: String(answer), explanation: `Aralıq maksimum-minimumdur: ${nums[3]}-${nums[0]}=${answer}.` };
 }
 
-function gradePacks(grade: number): TopicPack[] {
-  if (grade <= 4) return [arithmeticPack(grade), geometryPack(grade), probabilityPack(grade), fractionsPack(grade)];
-  if (grade <= 7) return [fractionsPack(grade), algebraPack(grade), geometryPack(grade), probabilityPack(grade)];
-  if (grade <= 9) return [algebraPack(grade), functionsPack(grade), geometryPack(grade), probabilityPack(grade)];
-  return [functionsPack(grade), algebraPack(grade), geometryPack(grade), probabilityPack(grade)];
+function probabilityBuilder(grade: number, index: number) {
+  const red = grade + 1 + (index % 6);
+  const blue = grade + 3 + (index % 5);
+  const total = red + blue;
+  if (index % 2 === 0) {
+    const answer = `${red}/${total}`;
+    return { skill: "Ehtimal", difficulty: "Orta" as Difficulty, question: `Qutuda ${red} qırmızı və ${blue} göy top var. Qırmızı seçmə ehtimalı hansıdır?`, options: uniqueOptions([`${blue}/${total}`, `1/${total}`, `${total}/${red}`], answer), answer, explanation: `Ehtimal əlverişli hallar / bütün hallar = ${red}/${total}.` };
+  }
+  const answer = `${blue}/${total}`;
+  return { skill: "Əks hadisə", difficulty: "Çətin" as Difficulty, question: `Qutuda ${red} qırmızı və ${blue} göy top var. Göy top seçmə ehtimalı hansıdır?`, options: uniqueOptions([`${red}/${total}`, `1/${total}`, `${total}/${blue}`], answer), answer, explanation: `Göy topların sayı ${blue}, bütün toplar ${total}-dir; ehtimal ${answer}.` };
 }
 
-export const taskBank: TopicPack[] = Array.from({ length: 11 }, (_, index) => gradePacks(index + 1)).flat();
+function functionBuilder(grade: number, index: number) {
+  const m = Math.max(1, grade - 5 + (index % 4));
+  const k = grade + index;
+  const x = 2 + (index % 5);
+  const answer = m * x + k;
+  return { skill: index % 2 ? "Qrafik qaydası" : "Funksiya qiyməti", difficulty: index % 3 ? "Orta" as Difficulty : "Çətin" as Difficulty, question: `f(x)=${m}x+${k}. f(${x}) neçədir?`, options: uniqueOptions([answer + m, answer - m, k], answer), answer: String(answer), explanation: `x yerinə ${x} yazırıq: ${m}×${x}+${k}=${answer}.` };
+}
+
+function logicBuilder(grade: number, index: number) {
+  const start = grade + index;
+  const step = 2 + (index % 5);
+  const answer = start + step * 4;
+  return { skill: "Ardıcıllıq", difficulty: index % 3 ? "Orta" as Difficulty : "Çətin" as Difficulty, question: `${start}, ${start + step}, ${start + step * 2}, ${start + step * 3}, ... növbəti ədəd hansıdır?`, options: uniqueOptions([answer + step, answer - step, start + step * 5], answer), answer: String(answer), explanation: `Ardıcıllıqda hər dəfə ${step} artır, növbəti hədd ${answer}-dir.` };
+}
+
+function wordProblemBuilder(grade: number, index: number) {
+  const days = 3 + (index % 8);
+  const daily = grade + 4 + (index % 7);
+  const answer = days * daily;
+  return { skill: "Mətnli məsələ", difficulty: difficulties[index % 4], question: `Bir şagird ${days} gün hər gün ${daily} tapşırıq həll etdi. Cəmi neçə tapşırıq həll etdi?`, options: uniqueOptions([answer + daily, answer - days, days + daily], answer), answer: String(answer), explanation: `Eyni say hər gün təkrarlandığı üçün vururuq: ${days}×${daily}=${answer}.` };
+}
+
+function trigonometryBuilder(grade: number, index: number) {
+  const angle = [30, 45, 60, 90][index % 4];
+  const answers: Record<number, string> = { 30: "1/2", 45: "√2/2", 60: "√3/2", 90: "1" };
+  const answer = answers[angle];
+  return { skill: grade < 9 ? "Bucaq nisbətinə hazırlıq" : "Triqonometriya", difficulty: grade < 9 ? "Orta" as Difficulty : "Çətin" as Difficulty, question: `${angle}° bucağı üçün sin(${angle}°) qiyməti hansıdır?`, options: uniqueOptions(["0", "√3/2", "√2/2", "1/2"], answer), answer, explanation: `Standart bucaq qiymətlərindən sin(${angle}°)=${answer}.` };
+}
+
+const topicMetas: TopicMeta[] = [
+  { slug: "hesab-emelleri", title: "Hesab əməlləri", description: "Toplama, çıxma, vurma, bölmə və əməl ardıcıllığı.", lesson: "Əvvəl mötərizə, sonra vurma-bölmə, sonda toplama-çıxma aparılır.", example: "8 + 4 × 3 = 20", xp: 80, builder: arithmeticBuilder },
+  { slug: "kesrler-faiz", title: "Kəsrlər və faiz", description: "Kəsr, nisbət, faiz və müqayisə tapşırıqları.", lesson: "Kəsrdə məxrəc bütövün bölündüyü hissələri, surət götürülən hissələri göstərir.", example: "2/7 + 3/7 = 5/7", xp: 100, builder: fractionBuilder },
+  { slug: "hendese-olcme", title: "Həndəsə və ölçmə", description: "Perimetr, sahə, həcm, bucaq və koordinat düşüncəsi.", lesson: "Fiquru təsəvvür et, verilənləri yaz və uyğun düsturu seç.", example: "P = 2(a+b)", xp: 90, builder: geometryBuilder },
+  { slug: "tenlikler", title: "Tənliklər", description: "Naməlumun tapılması və tənlik qurma bacarığı.", lesson: "Tənlik tərəzi kimidir: bir tərəfdə etdiyini digər tərəfdə də et.", example: "x + 7 = 15 → x = 8", xp: 120, builder: equationBuilder },
+  { slug: "cebr", title: "Cəbr və ifadələr", description: "Dəyişənlər, ifadələr və sadələşdirmə.", lesson: "Dəyişən ədədin yerini tutan hərfdir; verilən qiyməti yerinə yazaraq ifadəni hesablayırıq.", example: "2a+b", xp: 120, builder: equationBuilder },
+  { slug: "funksiyalar", title: "Funksiyalar", description: "Qayda, qrafik düşüncə və funksiya qiyməti.", lesson: "Funksiya girişlə çıxış arasındakı qaydadır.", example: "f(x)=2x+3", xp: 130, builder: functionBuilder },
+  { slug: "mentiq", title: "Məntiq və ardıcıllıqlar", description: "Qanunauyğunluq tapma və riyazi düşünmə.", lesson: "Ədədlərin necə dəyişdiyini izləyərək qaydanı tap.", example: "3, 6, 9, 12, ...", xp: 110, builder: logicBuilder },
+  { slug: "metnli-meseleler", title: "Mətnli məsələlər", description: "Real həyat situasiyalarını riyazi modelə çevir.", lesson: "Mətnli məsələdə verilənləri ayır, soruşulanı tap və əməli seç.", example: "5 gün × 8 tapşırıq", xp: 110, builder: wordProblemBuilder },
+  { slug: "statistika", title: "Statistika", description: "Orta qiymət, median, aralıq və məlumat oxuma.", lesson: "Statistika məlumatı oxuyub nəticə çıxarmağa kömək edir.", example: "Orta = cəm / say", xp: 110, builder: statisticsBuilder },
+  { slug: "ehtimal", title: "Ehtimal", description: "Hadisənin baş vermə şansını hesabla.", lesson: "Ehtimal əlverişli halların bütün hallara nisbətidir.", example: "P = əlverişli / bütün", xp: 115, builder: probabilityBuilder },
+  { slug: "trigonometriya-olimpiada", title: "Triqonometriya və olimpiada", description: "Qabaqcıl bucaq nisbətləri, standart qiymətlər və olimpiada düşüncəsi.", lesson: "Standart bucaq qiymətlərini yadda saxla və fiqur üzərində tətbiq et.", example: "sin30° = 1/2", xp: 150, builder: trigonometryBuilder }
+];
+
+function buildTopicPack(grade: number, meta: TopicMeta): TopicPack {
+  return {
+    grade,
+    slug: meta.slug,
+    title: meta.title,
+    description: meta.description,
+    lesson: meta.lesson,
+    example: meta.example,
+    xp: meta.xp,
+    tasks: Array.from({ length: 20 }, (_, index) => task(grade, index, meta))
+  };
+}
+
+export const taskBank: TopicPack[] = Array.from({ length: 11 }, (_, index) => topicMetas.map((meta) => buildTopicPack(index + 1, meta))).flat();
 
 export function getTopicsForGrade(grade: number) {
   return taskBank.filter((topic) => topic.grade === grade);
@@ -150,4 +219,8 @@ export function getTopicsForGrade(grade: number) {
 
 export function getTopicPack(grade: number, slug: string) {
   return taskBank.find((topic) => topic.grade === grade && topic.slug === slug);
+}
+
+export function getTaskCountForGrade(grade: number) {
+  return getTopicsForGrade(grade).reduce((sum, topic) => sum + topic.tasks.length, 0);
 }

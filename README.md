@@ -6,12 +6,10 @@ Premium Azerbaijani-first mathematics learning platform for grades 1–11. The a
 
 - **Student learning:** grade/topic journey, XP, streaks, badges, weak-topic analytics, recommended lessons.
 - **Learning modules:** Azerbaijani explanations, visual math blocks, practice, mini quizzes, timed exam mode.
-- **Working task bank:** students choose only grade first, then topic, solve real multiple-choice tasks, receive instant feedback and a final gamified report.
+- **Working math task bank:** students choose only grade first, then a math topic, solve 220 generated multiple-choice tasks per grade, receive instant feedback, and get a final gamified report.
 - **AI tutor:** OpenAI-backed Azerbaijani hints that guide step-by-step without revealing answers immediately.
-- **Teacher panel:** classroom operations, AI-generated worksheets/tests/homework/olympiad prompts, exam code generation.
-- **Exam integrity:** unique codes, one-time attempt schema, timer-ready model, randomized question flag, violation tracking.
-- **Admin:** user, teacher approval, grades/topics, subscriptions, AI content moderation, platform analytics.
-- **Premium:** unlimited AI tutor, advanced analytics, olympiad prep, parent reports, personalized study plans.
+- **Focused navigation:** the public product currently exposes only the Riyaziyyat learning section; other subject sections can be added later.
+- **Adaptive refresh:** every completed result can refresh the topic with a new 10-question set from the same 20-question topic pool.
 
 ## Stack
 
@@ -29,7 +27,7 @@ cp .env.example .env
 npm install
 npx prisma generate
 npx prisma migrate dev
-npm run prisma:seed   # loads grades 1–11, topic packs, lessons, quizzes and questions
+npm run prisma:seed   # loads grades 1–11, 11 topic packs per grade and 220 questions per grade
 npm run dev
 ```
 

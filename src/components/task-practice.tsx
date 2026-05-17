@@ -5,7 +5,7 @@ import { ArrowLeft, Award, BookOpen, CheckCircle2, Flame, GraduationCap, RotateC
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { grades } from "@/data/curriculum";
-import { getTopicsForGrade, type TopicPack } from "@/data/task-bank";
+import { getTaskCountForGrade, getTopicsForGrade, type MathTask, type TopicPack } from "@/data/task-bank";
 import { cn } from "@/lib/utils";
 
 type Answers = Record<string, string>;
@@ -39,10 +39,10 @@ function TopicSelector({ grade, onSelect }: { grade: number; onSelect: (topic: T
   );
 }
 
-function Results({ topic, answers, onReset }: { topic: TopicPack; answers: Answers; onReset: () => void }) {
-  const correct = topic.tasks.filter((task) => answers[task.id] === task.answer);
-  const percent = Math.round((correct.length / topic.tasks.length) * 100);
-  const wrongSkills = topic.tasks.filter((task) => answers[task.id] !== task.answer).map((task) => task.skill);
+function Results({ topic, tasks, answers, onReset }: { topic: TopicPack; tasks: MathTask[]; answers: Answers; onReset: () => void }) {
+  const correct = tasks.filter((task) => answers[task.id] === task.answer);
+  const percent = Math.round((correct.length / tasks.length) * 100);
+  const wrongSkills = tasks.filter((task) => answers[task.id] !== task.answer).map((task) => task.skill);
   const message = resultMessage(percent);
 
   return (
@@ -56,7 +56,7 @@ function Results({ topic, answers, onReset }: { topic: TopicPack; answers: Answe
           <div className="mt-8 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-2xl bg-white/10 p-4"><p className="text-3xl font-black">{percent}%</p><p className="text-xs text-slate-300">Dəqiqlik</p></div>
             <div className="rounded-2xl bg-white/10 p-4"><p className="text-3xl font-black">+{Math.round(topic.xp * percent / 100)}</p><p className="text-xs text-slate-300">XP</p></div>
-            <div className="rounded-2xl bg-white/10 p-4"><p className="text-3xl font-black">{correct.length}/{topic.tasks.length}</p><p className="text-xs text-slate-300">Doğru</p></div>
+            <div className="rounded-2xl bg-white/10 p-4"><p className="text-3xl font-black">{correct.length}/{tasks.length}</p><p className="text-xs text-slate-300">Doğru</p></div>
           </div>
         </div>
         <div className="p-8">
@@ -68,7 +68,7 @@ function Results({ topic, answers, onReset }: { topic: TopicPack; answers: Answe
           {wrongSkills.length ? <div className="mt-4 flex flex-wrap gap-2">{wrongSkills.map((skill) => <span key={skill} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm">{skill}</span>)}</div> : <p className="mt-4 rounded-2xl bg-white p-4 font-bold text-emerald-700">Zəif bacarıq yoxdur — bütün cavablar doğrudur.</p>}
           <h3 className="mt-7 text-2xl font-black">Səhvlərdən öyrən</h3>
           <div className="mt-4 space-y-3">
-            {topic.tasks.map((task) => (
+            {tasks.map((task) => (
               <div key={task.id} className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-start gap-3">
                   {answers[task.id] === task.answer ? <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-emerald-500" /> : <XCircle className="mt-1 h-5 w-5 shrink-0 text-rose-500" />}
@@ -88,14 +88,27 @@ function Results({ topic, answers, onReset }: { topic: TopicPack; answers: Answe
   );
 }
 
+function sessionTasks(topic: TopicPack | null, seed: number) {
+  if (!topic) return [];
+  return [...topic.tasks]
+    .sort((a, b) => {
+      const hashA = a.id.length * 13 + a.question.length * 7 + seed * (a.skill.length + 3);
+      const hashB = b.id.length * 13 + b.question.length * 7 + seed * (b.skill.length + 3);
+      return (hashA % 97) - (hashB % 97);
+    })
+    .slice(0, 10);
+}
+
 export function TaskPractice() {
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<TopicPack | null>(null);
   const [answers, setAnswers] = useState<Answers>({});
+  const [refreshSeed, setRefreshSeed] = useState(1);
+  const activeTasks = useMemo(() => sessionTasks(selectedTopic, refreshSeed), [selectedTopic, refreshSeed]);
 
-  const completed = selectedTopic ? selectedTopic.tasks.every((task) => answers[task.id]) : false;
-  const answeredCount = selectedTopic ? selectedTopic.tasks.filter((task) => answers[task.id]).length : 0;
-  const progress = selectedTopic ? Math.round((answeredCount / selectedTopic.tasks.length) * 100) : 0;
+  const completed = selectedTopic ? activeTasks.every((task) => answers[task.id]) : false;
+  const answeredCount = selectedTopic ? activeTasks.filter((task) => answers[task.id]).length : 0;
+  const progress = selectedTopic ? Math.round((answeredCount / activeTasks.length) * 100) : 0;
 
   const headline = useMemo(() => {
     if (!selectedGrade) return "Əvvəl sinfini seç";
@@ -109,9 +122,9 @@ export function TaskPractice() {
         <div>
           <p className="font-bold text-indigo-600">İşlək tapşırıq bazası · 1–11-ci sinif</p>
           <h1 className="mt-2 text-4xl font-black tracking-tight text-slate-950 md:text-6xl">{headline}</h1>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Sinif → mövzu → real tapşırıqlar → instant izah → nəticə. Bütün testlər cavablanır, yoxlanılır və sonda maraqlı analiz verir.</p>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Sinif → mövzu → real tapşırıqlar → instant izah → nəticə. Hər sinifdə 200+ tapşırıq var; hər nəticədən sonra set yenilənir və yeni suallar gəlir.</p>
         </div>
-        {selectedGrade && <Button variant="secondary" onClick={() => { setSelectedGrade(null); setSelectedTopic(null); setAnswers({}); }}><ArrowLeft className="mr-2 h-4 w-4" />Sinfi dəyiş</Button>}
+        {selectedGrade && <Button variant="secondary" onClick={() => { setSelectedGrade(null); setSelectedTopic(null); setAnswers({}); setRefreshSeed((seed) => seed + 1); }}><ArrowLeft className="mr-2 h-4 w-4" />Sinfi dəyiş</Button>}
       </div>
 
       {!selectedGrade && (
@@ -120,19 +133,19 @@ export function TaskPractice() {
             <button key={grade.id} onClick={() => setSelectedGrade(grade.id)} className="rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-300 hover:shadow-glow">
               <GraduationCap className="h-7 w-7 text-indigo-600" />
               <p className="mt-4 text-2xl font-black">{grade.label}</p>
-              <p className="mt-1 text-sm text-slate-500">{getTopicsForGrade(grade.id).reduce((sum, topic) => sum + topic.tasks.length, 0)} tapşırıq</p>
+              <p className="mt-1 text-sm text-slate-500">{getTaskCountForGrade(grade.id)} tapşırıq</p>
             </button>
           ))}
         </section>
       )}
 
-      {selectedGrade && !selectedTopic && <TopicSelector grade={selectedGrade} onSelect={(topic) => { setSelectedTopic(topic); setAnswers({}); }} />}
+      {selectedGrade && !selectedTopic && <TopicSelector grade={selectedGrade} onSelect={(topic) => { setSelectedTopic(topic); setAnswers({}); setRefreshSeed((seed) => seed + 1); }} />}
 
       {selectedTopic && (
         <>
           <div className="mt-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <Button variant="ghost" onClick={() => { setSelectedTopic(null); setAnswers({}); }}><ArrowLeft className="mr-2 h-4 w-4" />Mövzulara qayıt</Button>
-            <div className="rounded-full bg-white px-4 py-2 text-sm font-black shadow-sm"><Target className="mr-2 inline h-4 w-4 text-indigo-600" />{answeredCount}/{selectedTopic.tasks.length} tamamlandı · {progress}%</div>
+            <Button variant="ghost" onClick={() => { setSelectedTopic(null); setAnswers({}); setRefreshSeed((seed) => seed + 1); }}><ArrowLeft className="mr-2 h-4 w-4" />Mövzulara qayıt</Button>
+            <div className="rounded-full bg-white px-4 py-2 text-sm font-black shadow-sm"><Target className="mr-2 inline h-4 w-4 text-indigo-600" />{answeredCount}/{activeTasks.length} tamamlandı · {progress}%</div>
           </div>
 
           <section className="mt-6 grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
@@ -143,7 +156,7 @@ export function TaskPractice() {
               <div className="mt-6 rounded-3xl bg-white/15 p-5 text-center text-2xl font-black">{selectedTopic.example}</div>
             </Card>
             <div className="space-y-5">
-              {selectedTopic.tasks.map((task, index) => {
+              {activeTasks.map((task, index) => {
                 const selected = answers[task.id];
                 const isCorrect = selected === task.answer;
                 return (
@@ -172,7 +185,7 @@ export function TaskPractice() {
             </div>
           </section>
 
-          {completed && <Results topic={selectedTopic} answers={answers} onReset={() => setAnswers({})} />}
+          {completed && <Results topic={selectedTopic} tasks={activeTasks} answers={answers} onReset={() => { setAnswers({}); setRefreshSeed((seed) => seed + 1); }} />}
         </>
       )}
     </main>
