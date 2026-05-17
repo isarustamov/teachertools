@@ -64,6 +64,14 @@ function Results({ topic, tasks, answers, onReset }: { topic: TopicPack; tasks: 
             <span className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Sparkles className="mr-2 inline h-4 w-4" />{message.badge}</span>
             <span className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800"><Flame className="mr-2 inline h-4 w-4" />Seriya qorundu</span>
           </div>
+          {topic.grade <= 4 && (
+            <div className="mt-6 rounded-3xl border-2 border-dashed border-amber-300 bg-amber-50 p-5 text-center shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[.25em] text-amber-700">Sertifikat</p>
+              <h3 className="mt-2 text-2xl font-black text-slate-950">Kiçik Riyaziyyatçı Sertifikatı</h3>
+              <p className="mt-2 text-sm font-semibold text-slate-700">{topic.grade}-ci sinif üzrə {topic.title} mövzusunda çalışdığın üçün təbriklər! Sən hər cəhdlə daha ağıllı, daha diqqətli və daha inamlı olursan.</p>
+              <p className="mt-3 text-sm font-black text-emerald-700">Ulduzunu qoru: səhvlər öyrənməyin ən güclü yoludur ⭐</p>
+            </div>
+          )}
           <h3 className="mt-7 text-2xl font-black">Zəif bacarıqlar</h3>
           {wrongSkills.length ? <div className="mt-4 flex flex-wrap gap-2">{wrongSkills.map((skill) => <span key={skill} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm">{skill}</span>)}</div> : <p className="mt-4 rounded-2xl bg-white p-4 font-bold text-emerald-700">Zəif bacarıq yoxdur — bütün cavablar doğrudur.</p>}
           <h3 className="mt-7 text-2xl font-black">Səhvlərdən öyrən</h3>
@@ -169,7 +177,7 @@ export function TaskPractice() {
                     <h3 className="mt-4 text-xl font-black leading-8">{task.question}</h3>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {task.options.map((option) => (
-                        <button key={option} onClick={() => setAnswers((current) => ({ ...current, [task.id]: option }))} className={cn("rounded-2xl border p-4 text-left font-bold transition", selected === option ? option === task.answer ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-rose-300 bg-rose-50 text-rose-800" : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50")}>
+                        <button key={option} disabled={Boolean(selected)} onClick={() => setAnswers((current) => current[task.id] ? current : ({ ...current, [task.id]: option }))} className={cn("rounded-2xl border p-4 text-left font-bold transition disabled:cursor-not-allowed", selected === option ? option === task.answer ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-rose-300 bg-rose-50 text-rose-800" : selected ? "border-slate-200 bg-slate-50 text-slate-400" : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50")}>
                           {option}
                         </button>
                       ))}
